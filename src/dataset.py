@@ -1,3 +1,4 @@
+from pytorch_lightning import LightningDataModule
 from src.config import RAW_DATA_PATH, BATCH_SIZE, PROCESSED_DATA_PATH
 import pandas as pd
 import ast
@@ -6,6 +7,24 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 import pickle
+
+# Create data loaders
+class GraphDataModule(LightningDataModule):
+    def __init__(self, train_graphs, test_graphs, batch_size=32):
+        super().__init__()
+        self.train_graphs = train_graphs
+        self.test_graphs = test_graphs
+        self.batch_size = batch_size
+
+    def setup(self, stage=None):
+        pass
+
+    def train_dataloader(self):
+        return DataLoader(self.train_graphs, batch_size=self.batch_size, shuffle=True)
+
+    def val_dataloader(self):
+        return DataLoader(self.test_graphs, batch_size=self.batch_size)
+
 
 def read_data(data_path=PROCESSED_DATA_PATH):
     with open(data_path, 'rb') as f:
@@ -59,4 +78,6 @@ def parse_freeze_frame(freeze_frame):
 
 
 if __name__=='__main__':
-    make_data(save=True)
+    graphs = make_data(save=True)
+    train_graphs, test_graphs = train_test_split(graphs, test_size=0.2, random_state=42)
+    data_module = GraphDataModule(train_graphs, test_graphs)
