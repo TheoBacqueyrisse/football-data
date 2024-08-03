@@ -1,2 +1,4 @@
 Football_xG.egg-info
 *.cpython*
+lightning_logs
+wandb
