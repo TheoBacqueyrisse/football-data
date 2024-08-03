@@ -1,5 +1,5 @@
 from src.dataset import read_data
-from src.config import PROCESSED_DATA_PATH, BATCH_SIZE
+from src.config import PROCESSED_DATA_PATH, BATCH_SIZE, MAX_EPOCHS
 from src.modelling.gnn import GNNModel
 from sklearn.model_selection import train_test_split
 from src.dataset import GraphDataModule
@@ -26,5 +26,5 @@ if __name__=='__main__':
 
 
 
-    trainer = Trainer(max_epochs=200, logger=wandb_logger)
+    trainer = Trainer(max_epochs=MAX_EPOCHS, logger=wandb_logger)
     trainer.fit(model, data_module)
