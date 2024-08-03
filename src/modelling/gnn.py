@@ -30,13 +30,13 @@ class GNNModel(LightningModule):
     def training_step(self, batch, batch_idx):
         output = self(batch)
         loss = self.criterion(output, batch.y)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, batch_size=batch.num_graphs)
         return loss
 
     def validation_step(self, batch, batch_idx):
         output = self(batch)
         loss = self.criterion(output, batch.y)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, batch_size=batch.num_graphs)
         return loss
 
     def configure_optimizers(self):

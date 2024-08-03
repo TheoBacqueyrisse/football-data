@@ -4,6 +4,14 @@ from src.modelling.gnn import GNNModel
 from sklearn.model_selection import train_test_split
 from src.dataset import GraphDataModule
 from pytorch_lightning import Trainer
+import wandb
+from pytorch_lightning.loggers import WandbLogger
+
+# Initialize W&B
+wandb.init(project='football-xg')
+
+# Create a W&B logger
+wandb_logger = WandbLogger()
 
 
 graphs = read_data(data_path=PROCESSED_DATA_PATH)
@@ -16,5 +24,5 @@ model = GNNModel()
 
 
 
-trainer = Trainer(max_epochs=200)
+trainer = Trainer(max_epochs=200, logger=wandb_logger)
 trainer.fit(model, data_module)
