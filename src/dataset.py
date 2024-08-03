@@ -20,10 +20,10 @@ class GraphDataModule(LightningDataModule):
         pass
 
     def train_dataloader(self):
-        return DataLoader(self.train_graphs, batch_size=self.batch_size, shuffle=True, num_workers=11)
+        return DataLoader(self.train_graphs, batch_size=self.batch_size, shuffle=True, num_workers=11, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.test_graphs, batch_size=self.batch_size, num_workers=11)
+        return DataLoader(self.test_graphs, batch_size=self.batch_size, num_workers=11, persistent_workers=True)
 
 
 def read_data(data_path=PROCESSED_DATA_PATH):
