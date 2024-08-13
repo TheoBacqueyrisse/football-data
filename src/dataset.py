@@ -1,6 +1,7 @@
 from pytorch_lightning import LightningDataModule
 from src.config import RAW_DATA_PATH, BATCH_SIZE, PROCESSED_DATA_PATH
 import pandas as pd
+import numpy as np
 import ast
 import torch
 from torch_geometric.data import Data
@@ -36,9 +37,6 @@ def make_data(data_path=RAW_DATA_PATH, save=False):
 
     data = pd.read_csv(data_path)
 
-    # Filter for rows where there is a shot
-    data = data[data['type'] == 'Shot']  # Assuming 'type' is the column indicating the event type
-
     data['freeze_frame_parsed'] = data['shot_freeze_frame'].map(parse_freeze_frame)
 
     # Create graph data
@@ -52,25 +50,61 @@ def make_data(data_path=RAW_DATA_PATH, save=False):
     return graphs
 
 def create_graph(row):
-    players = row['freeze_frame_parsed']
-    x = []
+    
+    node_feature_matrix = pd.DataFrame()
+
+    player_loc = []
+    players_pos = []
+
     edge_index = []
+    edge_attr = []
+
     y = [row['shot_statsbomb_xg']]  # assuming 'expected_goal' is the target column
+
+    # add shooter and passer
+    player_loc.append(row['shot_location'])
+    players_pos.append(row['shooter_position'])
+
+    player_loc.append(row['fk_location'])
+    players_pos.append(row['fk_taker_position'])
     
-    for player in players:
-        x.append(player['location'])
-    
+    # add players from freeze frame
+    players = row['freeze_frame_parsed']
     num_players = len(players)
+    for player in players:
+        player_loc.append(player['location']) 
+        players_pos.append(player['position']['name'])
+
+    # node_feature_matrix['location'] = x
+    node_feature_matrix['player_position'] = players_pos
+
+    # add shot features
+    shot_cols = ['shot_duration', 'shot_location', 'minute', 'period', 'shot_body_part', 'shot_freeze_frame', 'shot_technique', 'shot_open_goal']
+    for shot_col in shot_cols:
+        node_feature_matrix[shot_col] = [row[shot_col]] + (num_players+1)*[0]
+    
+    fk_cols = ['fk_duration', 'fk_location', 'pass_angle', 'pass_height', 'pass_length', 'pass_switch']
+    for fk_col in fk_cols:
+        node_feature_matrix[fk_col] = [0] + [row[fk_col]] + num_players*[0]
+    
+    
     for i in range(num_players):
         for j in range(i+1, num_players):
             edge_index.append([i, j])
             edge_index.append([j, i])
+            if players[i]['teammate'] == players[j]['teammate']:
+                edge_attr.append(1)
+            else:
+                edge_attr.append(0)
     
-    x = torch.tensor(x, dtype=torch.float)
+    node_feature_matrix = torch.tensor(node_feature_matrix)
+    player_loc = torch.tensor(player_loc, dtype=torch.float)
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+    edge_attr = torch.tensor(edge_attr, dtype=torch.float)
+
     y = torch.tensor(y, dtype=torch.float)
     
-    return Data(x=x, edge_index=edge_index, y=y)
+    return Data(x=node_feature_matrix, edge_index=edge_index, edge_attr = edge_attr, pos = player_loc, y=y)
 
 def parse_freeze_frame(freeze_frame):
     players = ast.literal_eval(freeze_frame)
