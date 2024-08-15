@@ -1,5 +1,5 @@
 from pytorch_lightning import LightningDataModule
-from src.config import RAW_DATA_PATH, BATCH_SIZE, PROCESSED_DATA_PATH
+from src.config import RAW_DATA_PATH, TRAIN_BATCH_SIZE, TEST_BATCH_SIZE, PROCESSED_DATA_PATH
 import pandas as pd
 import numpy as np
 import ast
@@ -59,34 +59,26 @@ def create_graph(row):
     edge_index = []
     edge_attr = []
 
-    y = [row['shot_statsbomb_xg']]  # assuming 'expected_goal' is the target column
+    y = [row['shot_statsbomb_xg']]
 
     # add shooter and passer
-    player_loc.append(row['shot_location'])
-    players_pos.append(row['shooter_position'])
-
-    player_loc.append(row['fk_location'])
-    players_pos.append(row['fk_taker_position'])
+    player_loc.append(ast.literal_eval(row['shot_location']))
+    player_loc.append(ast.literal_eval(row['fk_location']))
     
     # add players from freeze frame
     players = row['freeze_frame_parsed']
     num_players = len(players)
     for player in players:
-        player_loc.append(player['location']) 
-        players_pos.append(player['position']['name'])
+        player_loc.append(player['location'])
 
-    # node_feature_matrix['location'] = x
-    node_feature_matrix['player_position'] = players_pos
+    print(player_loc)
 
-    # add shot features
-    shot_cols = ['shot_duration', 'shot_location', 'minute', 'period', 'shot_body_part', 'shot_freeze_frame', 'shot_technique', 'shot_open_goal']
-    for shot_col in shot_cols:
-        node_feature_matrix[shot_col] = [row[shot_col]] + (num_players+1)*[0]
-    
-    fk_cols = ['fk_duration', 'fk_location', 'pass_angle', 'pass_height', 'pass_length', 'pass_switch']
-    for fk_col in fk_cols:
-        node_feature_matrix[fk_col] = [0] + [row[fk_col]] + num_players*[0]
-    
+    for col in row.keys():
+        if col not in ['shot_statsbomb_xg', 'shot_location', 'shooter_position', 'fk_location', 'fk_taker_position', 'freeze_frame_parsed', 'shot_freeze_frame']:
+            if col[:4] == 'shot':
+                node_feature_matrix[col] = [row[col]] + (num_players+1)*[0]
+            else:
+                node_feature_matrix[col] = [0] + [row[col]] + num_players*[0]
     
     for i in range(num_players):
         for j in range(i+1, num_players):
@@ -97,7 +89,7 @@ def create_graph(row):
             else:
                 edge_attr.append(0)
     
-    node_feature_matrix = torch.tensor(node_feature_matrix)
+    node_feature_matrix = torch.tensor(node_feature_matrix.values)
     player_loc = torch.tensor(player_loc, dtype=torch.float)
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     edge_attr = torch.tensor(edge_attr, dtype=torch.float)

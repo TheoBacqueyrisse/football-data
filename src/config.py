@@ -1,8 +1,7 @@
 import os
 
-
-RAW_DATA_PATH = os.path.join('data', 'raw', 'freekick_pass_shot.csv')
-PROCESSED_DATA_PATH = os.path.join('data', 'processed', 'processed_freekick_pass_shot.pkl')
+RAW_DATA_PATH = os.path.join('data', 'raw', 'encoded_action_data.csv')
+PROCESSED_DATA_PATH = os.path.join('data', 'processed', 'processed_encoded_action_data.pkl')
 PREPROCESSOR_PATH = os.path.join('src', 'modelling', 'boxcox.pkl')
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE = 64
