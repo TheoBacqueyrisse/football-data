@@ -1,5 +1,5 @@
 from pytorch_lightning import LightningDataModule
-from src.config import RAW_DATA_PATH, BATCH_SIZE, PROCESSED_DATA_PATH
+from src.config import RAW_DATA_PATH, PROCESSED_DATA_PATH, PREPROCESSOR_PATH
 import pandas as pd
 import ast
 import torch
@@ -7,6 +7,9 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 import pickle
+from sklearn.preprocessing import PowerTransformer
+import numpy as np
+
 
 # Create data loaders
 class GraphDataModule(LightningDataModule):
@@ -41,11 +44,16 @@ def make_data(data_path=RAW_DATA_PATH, save=False):
 
     data['freeze_frame_parsed'] = data['shot_freeze_frame'].map(parse_freeze_frame)
 
-    # Create graph data
-
     graphs = data.apply(create_graph, axis=1).tolist()
 
+   
     if save:
+        boxcox_transformer = PowerTransformer(method='box-cox')
+        y = boxcox_transformer.fit_transform(data['shot_statsbomb_xg'].values.reshape(-1,1)).ravel()
+
+        with open(PREPROCESSOR_PATH, 'wb') as f:
+            pickle.dump(boxcox_transformer, f)
+
         with open(PROCESSED_DATA_PATH, "wb") as f:
             pickle.dump(graphs, f)
 
@@ -68,6 +76,9 @@ def create_graph(row):
     
     x = torch.tensor(x, dtype=torch.float)
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+    
+    y = boxcox_transformer.transform(np.array(y).reshape(1,-1))
+
     y = torch.tensor(y, dtype=torch.float)
     
     return Data(x=x, edge_index=edge_index, y=y)
@@ -78,6 +89,8 @@ def parse_freeze_frame(freeze_frame):
 
 
 if __name__=='__main__':
+    with open(PREPROCESSOR_PATH, 'rb') as f:
+        boxcox_transformer = pickle.load( f)
     graphs = make_data(save=True)
     train_graphs, test_graphs = train_test_split(graphs, test_size=0.2, random_state=42)
     data_module = GraphDataModule(train_graphs, test_graphs)
