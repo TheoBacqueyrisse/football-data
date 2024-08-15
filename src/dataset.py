@@ -71,8 +71,6 @@ def create_graph(row):
     for player in players:
         player_loc.append(player['location'])
 
-    print(player_loc)
-
     for col in row.keys():
         if col not in ['shot_statsbomb_xg', 'shot_location', 'shooter_position', 'fk_location', 'fk_taker_position', 'freeze_frame_parsed', 'shot_freeze_frame']:
             if col[:4] == 'shot':

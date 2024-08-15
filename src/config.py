@@ -5,4 +5,4 @@ PROCESSED_DATA_PATH = os.path.join('data', 'processed', 'processed_encoded_actio
 PREPROCESSOR_PATH = os.path.join('src', 'modelling', 'boxcox.pkl')
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE = 64
-MAX_EPOCHS = 50
+MAX_EPOCHS = 100

@@ -6,7 +6,7 @@ from pytorch_lightning import LightningModule
 class GNNModel(LightningModule):
     def __init__(self):
         super(GNNModel, self).__init__()
-        self.conv1 = GCNConv(2, 16)  # 2 input features (x, y) and 16 output features
+        self.conv1 = GCNConv(71, 16)  # 2 input features (x, y) and 16 output features
         self.conv2 = GCNConv(16, 32)
         self.fc1 = torch.nn.Linear(32, 16)
         self.fc2 = torch.nn.Linear(16, 1)
@@ -14,7 +14,7 @@ class GNNModel(LightningModule):
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
-        
+        x = x.to(torch.float32)
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         x = self.conv2(x, edge_index)
@@ -34,6 +34,16 @@ class GNNModel(LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """
+        Defines the validation step for the GNN model.
+
+        Parameters:
+        batch (object): The batch of data to be validated.
+        batch_idx (int): The index of the batch.
+
+        Returns:
+        loss (float): The validation loss of the model.
+        """
         output = self(batch)
         loss = self.criterion(output, batch.y)
         self.log('val_loss', loss, batch_size=batch.num_graphs)
