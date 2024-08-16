@@ -1,0 +1,14 @@
+program: train_gnn.py
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+parameters:
+  learning_rate:
+    values: [0.01, 0.001]
+  conv1_size:
+    values: [16, 32, 64]
+  conv2_size:
+    values: [32, 64, 128]
+  fc1_size:
+    values: [16, 32, 64]
