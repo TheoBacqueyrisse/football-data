@@ -18,7 +18,7 @@ if __name__=='__main__':
     train_graphs, test_graphs = train_test_split(graphs, test_size=0.2, random_state=42)
     data_module = GraphDataModule(train_graphs, test_graphs, batch_size=TRAIN_BATCH_SIZE)
 
-    model = GNNModel(wandb.config.conv1_size, wandb.config.conv2_size, wandb.config.fc1_size)
+    model = GNNModel(wandb.config.conv_type, wandb.config.conv1_size, wandb.config.conv2_size, wandb.config.fc1_size, wandb.config.activation)
 
     # log model only if `val_accuracy` increases
     wandb_logger = WandbLogger(log_model="all")

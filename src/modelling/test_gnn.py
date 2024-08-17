@@ -1,3 +1,4 @@
+import wandb
 from src.modelling.gnn import GNNModel
 import torch
 from sklearn.metrics import mean_squared_error, r2_score
@@ -9,12 +10,34 @@ import tqdm
 import pickle
 import numpy as np
 from torch_geometric.loader import DataLoader
+import os
+import wandb
 
-# Load the model from checkpoint
-checkpoint_path = "lightning_logs\zxzcgv52\checkpoints\epoch=49-step=6250.ckpt"
-model = GNNModel.load_from_checkpoint(checkpoint_path)
+api = wandb.Api()
+sweep = api.sweep(f"football-data/sweeps/890adt0c")
 
+# Get best run parameters
+best_run = sweep.best_run()#order='validation/loss')
+best_parameters = best_run.config
 # Perform inference
+
+# List all artifacts used or logged by this run
+artifacts = best_run.logged_artifacts()
+
+# Iterate over artifacts to find the one with the tag 'best'
+for artifact in artifacts:
+    if 'best' in artifact.aliases:  # Check if the artifact has the 'best' tag
+        print(f"Found 'best' artifact: {artifact.name}")
+        # Download the artifact
+        artifact_dir = artifact.download()
+        print(f"Best artifact downloaded to {artifact_dir}")
+        break
+else:
+    print("No artifact with the 'best' tag found.")
+
+
+model = GNNModel.load_from_checkpoint(os.path.join(artifact_dir, "model.ckpt"), **best_parameters)
+
 def perform_inference(loader, model):
     model.eval()
     preds = []
