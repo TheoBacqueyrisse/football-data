@@ -8,22 +8,23 @@ from sklearn.model_selection import train_test_split
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error
 
+import wandb
+
 def read_data():
-    return  pd.read_csv(XGB_DATA_PATH).drop(['Unnamed: 0', 'shot_duration'], axis = 1)
+    return  pd.read_csv(XGB_DATA_PATH)
 
 
-def xgb_model(X_train, y_train, save = False):
-    
-    dtrain_reg = xgb.DMatrix(X_train, y_train)
+def xgb_model(X_train, y_train, params, save = False):
 
-    n = 100
-    params = {'objective' : 'reg:absoluteerror'}
-
-    model = xgb.train(
-        params=params,
-        dtrain=dtrain_reg,
-        num_boost_round=n,
-        )
+    model = xgb.XGBRegressor(
+        max_depth=params['max_depth'],
+        learning_rate=params['learning_rate'],
+        n_estimators=params['n_estimators'],
+        gamma=params['gamma'],
+        objective='reg:absoluteerror'
+    )
+        
+    model.fit(X_train, y_train)
 
     if save :
         model.save_model(XGB_MODEL_PATH)
@@ -58,13 +59,18 @@ def main() :
     X = df.drop('shot_statsbomb_xg', axis = 1)
     y = df.shot_statsbomb_xg
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state = 42)
 
     # train xgb
-    model = xgb_model(X_train, y_train, save=True)
+    api = wandb.Api()
+    sweep = api.sweep("thomas-toulouse/xgb-football-xg/c9kzqpqs")
+    best_run = sweep.best_run()
+    best_parameters = best_run.config
+
+    model = xgb_model(X_train.drop('minute', axis = 1), y_train, params = best_parameters, save=True)
 
     # predict, plot mae, get results on test and feature importance
-    test_pred = model.predict(xgb.DMatrix(X_test))
+    test_pred = model.predict(X_test.drop('minute', axis = 1))
 
     mae = mean_absolute_error(y_test, test_pred)
     print(mae)
