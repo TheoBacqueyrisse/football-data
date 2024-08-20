@@ -78,25 +78,24 @@ def fitness_function(ga_class, solution, solution_idx):
 
     predicted_xg = xgboost_model.predict(model_input)
     
-    
     return predicted_xg
 
 # Genetic Algorithm Parameters
 ga_instance = pygad.GA(
     num_generations=100,  # Number of generations
-    num_parents_mating=20,  # Number of parents selected for mating
+    num_parents_mating=10,  # Number of parents selected for mating
     fitness_func=fitness_function,  # Fitness function
-    sol_per_pop=100,  # Number of solutions in the population
+    sol_per_pop=50,  # Number of solutions in the population
     num_genes=nb_param,  # Number of genes (parameters to optimize)
     gene_type=float,  # Data type for each gene
     init_range_low=0,  # Lower bound for gene values
     init_range_high=100,  # Upper bound for gene values (adjust based on the field dimensions)
     mutation_type="random",  # Mutation type
-    mutation_percent_genes=10,  # Percentage of genes to mutate
+    mutation_percent_genes=30,  # Percentage of genes to mutate
     crossover_type="single_point",  # Type of crossover
     parent_selection_type="sss",  # Parent selection method (Stochastic universal sampling)
-    keep_parents=5,  # Number of parents to keep in the next generation
-    on_generation=lambda ga: print(f"Generation {ga.generations_completed}: Best Fitness = {ga.best_solution()[1]}")  # Callback to print fitness at each generation
+    keep_parents=2,  # Number of parents to keep in the next generation
+    on_generation=lambda ga: print(f"Generation {ga.generations_completed}: Best Fitness = {ga.best_solution()[1]}, Best Position = {ga.best_solution()[0]}")  # Callback to print fitness at each generation
 )
 
 # Run the Genetic Algorithm
