@@ -11,8 +11,8 @@ xgboost_model = xgb.XGBRegressor()
 xgboost_model.load_model('src\\modelling\\xgboost\\xgb.json')  # Replace with the actual path to your model
 
 # Load the data
-data = pd.read_csv(XGB_DATA_PATH, index_col=0).iloc[0]
-data = data.drop('shot_statsbomb_xg')
+initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0).iloc[7]
+initial_data = initial_data.drop('shot_statsbomb_xg')
 
 def get_teammates(data):
     teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 1)]
@@ -22,37 +22,43 @@ def get_teammates(data):
 
     return columns_with_1
 
-teammates = get_teammates(data)
+teammates = get_teammates(initial_data)
 
 
 teammates = ['_'.join(teammate.split('_')[1:]) for teammate in teammates]
 
 
-drop_distance_indice = []
-drop_angle_indice = []
+# drop_distance_indice = []
+# drop_angle_indice = []
 
-for teammate in teammates:
-    drop_distance_indice.append(data.index.get_loc(f'distance_{teammate}'))
-    drop_angle_indice.append(data.index.get_loc(f'angle_{teammate}'))
-    data.drop(f'distance_{teammate}', inplace=True)
-    data.drop(f'angle_{teammate}', inplace=True)
+# for teammate in teammates:
+#     drop_distance_indice.append(initial_data.index.get_loc(f'distance_{teammate}'))
+#     drop_angle_indice.append(initial_data.index.get_loc(f'angle_{teammate}'))
+
+# drop_indices = drop_distance_indice + drop_angle_indice
+# drop_indices = sorted(drop_indices, reverse=True)
+
+# Drop columns based on collected indices
+
 
 nb_param = len(teammates)*2 #x and y every player
 
 
 # Function to reshape the solution into the desired format for the XGBoost model
 def reshape_solution(solution):
-    new_data = data.copy(deep=True).to_frame().T
+    new_data = initial_data.copy(deep=True).to_frame().T
 
     tuple_list = list(zip(solution[::2], solution[1::2]))
 
     for i,(x,y) in enumerate(tuple_list):
-        distance = euclidean_distance((x,y), (data['shot_x'], data['shot_y']))
-        angle = goal_player_angle((x,y), (data['shot_x'], data['shot_y']))
+        distance = euclidean_distance((x,y), (initial_data['shot_x'], initial_data['shot_y']))
+        angle = goal_player_angle((x,y), (initial_data['shot_x'], initial_data['shot_y']))
         # print(f'Inserted distance {distance} and angle {angle} for player {teammates[i]}')
 
-        new_data.insert(drop_distance_indice[i],f'distance_{teammates[i]}',distance)
-        new_data.insert(drop_angle_indice[i],f'angle_{teammates[i]}',angle)
+        new_data[f'distance_{teammates[i]}'] = distance
+        new_data[f'angle_{teammates[i]}'] = angle
+
+    new_data = new_data[initial_data.copy(deep=True).to_frame().T.columns]
 
     return new_data
 
