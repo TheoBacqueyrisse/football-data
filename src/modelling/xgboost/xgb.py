@@ -10,6 +10,8 @@ from sklearn.metrics import mean_absolute_error
 
 import wandb
 
+SWEEP_ID = "thomas-toulouse/xgb-football-xg/r25vjm3e"
+
 def read_data():
     return  pd.read_csv(XGB_DATA_PATH)
 
@@ -59,18 +61,27 @@ def main() :
     X = df.drop('shot_statsbomb_xg', axis = 1)
     y = df.shot_statsbomb_xg
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state = 42)
+    cols_to_keep = ['shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
+                    'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
+    X_train, X_test, y_train, y_test = train_test_split(X[cols_to_keep], y, test_size=0.25, random_state=42)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state = 42)
 
     # train xgb
-    api = wandb.Api()
-    sweep = api.sweep("thomas-toulouse/xgb-football-xg/c9kzqpqs")
+
+    api = wandb.Api()    
+    sweep = api.sweep(SWEEP_ID)
     best_run = sweep.best_run()
     best_parameters = best_run.config
 
-    model = xgb_model(X_train.drop('minute', axis = 1), y_train, params = best_parameters, save=True)
+    model = xgb_model(X_train, y_train, params = best_parameters, save=True)
 
     # predict, plot mae, get results on test and feature importance
-    test_pred = model.predict(X_test.drop('minute', axis = 1))
+    test_pred = model.predict(X_test)
+
+    # model = xgb_model(X_train.drop('minute', axis = 1), y_train, params = best_parameters, save=True)
+
+    # # predict, plot mae, get results on test and feature importance
+    # test_pred = model.predict(X_test.drop('minute', axis = 1))
 
     mae = mean_absolute_error(y_test, test_pred)
     print(mae)

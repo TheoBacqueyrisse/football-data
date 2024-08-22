@@ -8,11 +8,14 @@ from src.modelling.genetic.functions import euclidean_distance, goal_player_angl
 
 # Load the pre-trained XGBoost model
 xgboost_model = xgb.XGBRegressor()
-xgboost_model.load_model('src\\modelling\\xgboost\\xgb.json')  # Replace with the actual path to your model
+xgboost_model.load_model('src\\modelling\\xgboost\\xgb_few_var.json')  # Replace with the actual path to your model
 
 # Load the data
-initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0).iloc[7]
+cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
+                'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
+initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0)[cols_to_keep].iloc[7]
 initial_data = initial_data.drop('shot_statsbomb_xg')
+print(initial_data)
 
 def get_teammates(data):
     teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 1)]

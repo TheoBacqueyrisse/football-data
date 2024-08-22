@@ -17,7 +17,13 @@ def train_xgboost(config=None):
         config = wandb.config
         
         data = read_data() 
-        X_train, X_test, y_train, y_test = train_test_split(data.drop('shot_statsbomb_xg', axis = 1), data.shot_statsbomb_xg, test_size=0.25, random_state=42)
+
+        # test to remove columns
+        cols_to_keep = ['shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
+                        'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
+        X_train, X_test, y_train, y_test = train_test_split(data[cols_to_keep], data.shot_statsbomb_xg, test_size=0.25, random_state=42)
+
+        # X_train, X_test, y_train, y_test = train_test_split(data.drop('shot_statsbomb_xg', axis = 1), data.shot_statsbomb_xg, test_size=0.25, random_state=42)
         
         model = xgb.XGBRegressor(
             max_depth=config.max_depth,

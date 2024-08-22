@@ -85,6 +85,9 @@ def main():
 
     action_data.drop(['shot_location', 'fk_location'], axis=1, inplace=True)
 
+    # distance of shot to goal 
+    action_data['distance_to_goal'] = [euclidean_distance([action_data.shot_x[i], action_data.shot_y[i]], [120, 40]) for i in range(len(action_data))]
+    
     # encode boolean variables in 0/1
     action_data['shot_open_goal'] = np.where(action_data['shot_open_goal'], 1, 0)
     action_data['pass_switch'] = np.where(action_data['pass_switch'], 1, 0)
