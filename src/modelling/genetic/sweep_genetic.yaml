@@ -1,0 +1,30 @@
+program: src\modelling\genetic\genetic_pygad_shot_sweep.py  # Your script filename
+method: bayes  # Bayesian optimization of hyperparameters
+metric:
+  name: xg_improvement  # The metric to optimize
+  goal: maximize
+parameters:
+  num_generations:
+    max: 50
+    min: 10
+    distribution: int_uniform
+  num_parents_mating:
+    max: 20
+    min: 5
+    distribution: int_uniform
+  mutation_percent_genes:
+    max: 50
+    min: 10
+    distribution: int_uniform
+  crossover_type:
+    values: ["single_point", "two_points", "uniform"]
+  parent_selection_type:
+    values: ["sss", "rws", "tournament", "rank"]
+  keep_parents:
+    max: 5
+    min: 1
+    distribution: int_uniform
+  sol_per_pop:
+    max: 100
+    min: 20
+    distribution: int_uniform
