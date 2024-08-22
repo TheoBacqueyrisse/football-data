@@ -17,26 +17,9 @@ warnings.filterwarnings('ignore')
 xgboost_model = xgb.XGBRegressor()
 xgboost_model.load_model(XGB_MODEL_PATH)  # Replace with the actual path to your model
 
-# Load the data
-# cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
-#                 'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
-
-# initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0)[cols_to_keep].iloc[7]
-# initial_data = initial_data.drop('shot_statsbomb_xg')
-
-
-# drop_distance_indice = []
-# drop_angle_indice = []
-
-# for teammate in teammates:
-#     drop_distance_indice.append(initial_data.index.get_loc(f'distance_{teammate}'))
-#     drop_angle_indice.append(initial_data.index.get_loc(f'angle_{teammate}'))
-
-# drop_indices = drop_distance_indice + drop_angle_indice
-# drop_indices = sorted(drop_indices, reverse=True)
-
 # Drop columns based on collected indices
 SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
+SHOW_PLOT = False
 
 num_tuples = 1 #x and y for shot
 sol_per_pop = 50
@@ -144,56 +127,60 @@ for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):
 
     # After the algorithm completes, get the best solution
     best_solution, best_solution_fitness, _ = ga_instance.best_solution()
+    percent_improv = round(((best_solution_fitness - initial_xg)/initial_xg * 100)[0],2)
 
-    print(f"Best Solution:({round(best_solution[0])},{round(best_solution[1])}")
+    print(f"Best Solution:({round(best_solution[0],1)},{round(best_solution[1],1)})")
     print("Best Fitness:", best_solution_fitness[0])
-    print(f"Improvement in %:  {round(((best_solution_fitness - initial_xg)/initial_xg * 100)[0],2)} %")
+    print(f"Improvement in %:  {percent_improv} %")
     # Convert the best solution to a readable format (e.g., player positions)
     best_positions = reshape_solution(best_solution)
     # print("Optimal Player Positions:")
     # print(best_positions)
 
-    if (best_solution_fitness - initial_xg) > max:
-        max = (best_solution_fitness - initial_xg)
+    if percent_improv > max:
+        max = percent_improv
         best_iloc=i
 
-    print()
-     # Load the freekick_pass_shot.csv file
-    freekick_data = pd.read_csv(os.path.join('data', 'raw', 'freekick_pass_shot.csv'), index_col=0)
-    freekick_data_2 = pd.read_csv(os.path.join('data', 'processed', 'clean_action_data.csv'))
+    if SHOW_PLOT:
+        # Load the freekick_pass_shot.csv file
+        freekick_data = pd.read_csv(os.path.join('data', 'raw', 'freekick_pass_shot.csv'), index_col=0)
+        freekick_data_2 = pd.read_csv(os.path.join('data', 'processed', 'clean_action_data.csv'))
 
-    # Find the row where the shot_statsbomb_xg value matches your initial_xg value
-    matching_row = freekick_data[freekick_data['shot_statsbomb_xg'] == initial_xg]
-    matching_row_2 = freekick_data_2[freekick_data_2['shot_statsbomb_xg'] == initial_xg]
+        # Find the row where the shot_statsbomb_xg value matches your initial_xg value
+        matching_row = freekick_data[freekick_data['shot_statsbomb_xg'] == initial_xg]
+        matching_row_2 = freekick_data_2[freekick_data_2['shot_statsbomb_xg'] == initial_xg]
 
-    # If a matching row is found, extract the freeze frame data
-    if not matching_row.empty:
-        freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
-        shot_x = matching_row_2['shot_x'].values[0]
-        shot_y = matching_row_2['shot_y'].values[0]
-        new_shot_x, new_shot_y = best_solution
-        fk_x = matching_row_2['fk_x'].values[0]
-        fk_y = matching_row_2['fk_y'].values[0]
+        # If a matching row is found, extract the freeze frame data
+        if not matching_row.empty:
+            freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
+            shot_x = matching_row_2['shot_x'].values[0]
+            shot_y = matching_row_2['shot_y'].values[0]
+            new_shot_x, new_shot_y = best_solution
+            fk_x = matching_row_2['fk_x'].values[0]
+            fk_y = matching_row_2['fk_y'].values[0]
 
-        pitch = Pitch(pitch_type='statsbomb', pitch_color='grass', line_color='white')
+            pitch = Pitch(pitch_type='statsbomb', pitch_color='grass', line_color='white')
 
-        fig, ax = pitch.draw()
+            fig, ax = pitch.draw()
 
-        # Extract locations and player names
-        x = [player['location'][0] for player in freeze_frame]
-        y = [player['location'][1] for player in freeze_frame]
-        names = [player['position']['id'] for player in freeze_frame]
-        teammates = [player['teammate'] for player in freeze_frame]
+            # Extract locations and player names
+            x = [player['location'][0] for player in freeze_frame]
+            y = [player['location'][1] for player in freeze_frame]
+            names = [player['position']['id'] for player in freeze_frame]
+            teammates = [player['teammate'] for player in freeze_frame]
 
-        palette = {True: 'blue', False: 'red'}
-        sns.scatterplot(x=x, y=y, ax=ax, s=50, hue=teammates, palette=palette, legend=False)
-        sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=100, color='black', legend=False)
-        sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=100, color='purple', legend=False)
-        sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
-        # Annotate the points with player names
-        for i, name in enumerate(names):
-            ax.annotate(name, (x[i], y[i]), textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='white')
+            palette = {True: 'blue', False: 'red'}
+            sns.scatterplot(x=x, y=y, ax=ax, s=50, hue=teammates, palette=palette, legend=False)
+            sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=100, color='black', legend=False)
+            sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=100, color='purple', legend=False)
+            sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
+            # Annotate the points with player names
+            for i, name in enumerate(names):
+                ax.annotate(name, (x[i], y[i]), textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='white')
 
-        plt.show()
-    else:
-        print("No matching row found in freekick_pass_shot.csv")
+            plt.show()
+        else:
+            print("No matching row found in freekick_pass_shot.csv")
+
+    print(f"Maximum Improvement: {max} %")
+    print(f"Best Iloc: {best_iloc}")
