@@ -8,11 +8,14 @@ from src.modelling.genetic.functions import euclidean_distance, goal_player_angl
 
 # Load the pre-trained XGBoost model
 xgboost_model = xgb.XGBRegressor()
-xgboost_model.load_model('src\\modelling\\xgboost\\xgb.json')  # Replace with the actual path to your model
+xgboost_model.load_model('src\\modelling\\xgboost\\xgb_few_var.json')  # Replace with the actual path to your model
 
 # Load the data
-initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0).iloc[7]
-initial_data = initial_data.drop('shot_statsbomb_xg')
+# cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
+#                 'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
+
+# initial_data = pd.read_csv(XGB_DATA_PATH, index_col=0)[cols_to_keep].iloc[7]
+# initial_data = initial_data.drop('shot_statsbomb_xg')
 
 
 # drop_distance_indice = []
@@ -63,34 +66,58 @@ def fitness_function(ga_class, solution, solution_idx):
     
     return predicted_xg
 
-# Genetic Algorithm Parameters
-ga_instance = pygad.GA(
-    num_generations=100,  # Number of generations
-    num_parents_mating=10,  # Number of parents selected for mating
-    fitness_func=fitness_function,  # Fitness function
-    sol_per_pop=50,  # Number of solutions in the population
-    num_genes=nb_param,  # Number of genes (parameters to optimize)
-    gene_type=float,  # Data type for each gene
-    init_range_low=0,  # Lower bound for gene values
-    init_range_high=100,  # Upper bound for gene values (adjust based on the field dimensions)
-    mutation_type="random",  # Mutation type
-    mutation_percent_genes=30,  # Percentage of genes to mutate
-    crossover_type="single_point",  # Type of crossover
-    parent_selection_type="sss",  # Parent selection method (Stochastic universal sampling)
-    keep_parents=2,  # Number of parents to keep in the next generation
-    on_generation=lambda ga: print(f"Generation {ga.generations_completed}: Best Fitness = {ga.best_solution()[1]}, Best Position = {ga.best_solution()[0]}")  # Callback to print fitness at each generation
-)
 
-# Run the Genetic Algorithm
-ga_instance.run()
+cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
+                'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
 
-# After the algorithm completes, get the best solution
-best_solution, best_solution_fitness, _ = ga_instance.best_solution()
+# init better improvement 
+max = 0
+best_iloc = 0
+df = pd.read_csv(XGB_DATA_PATH, index_col=0)[cols_to_keep]
 
-print("Best Solution:", best_solution)
-print("Best Fitness:", best_solution_fitness)
+for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):  
+    print("iloc :", i)
+    initial_data = df.iloc[i]
+    initial_xg = initial_data.shot_statsbomb_xg
+    initial_data = initial_data.drop('shot_statsbomb_xg')
 
-# Convert the best solution to a readable format (e.g., player positions)
-best_positions = reshape_solution(best_solution)
-print("Optimal Player Positions:")
-print(best_positions)
+    # Genetic Algorithm Parameters
+    ga_instance = pygad.GA(
+        num_generations=30,  # Number of generations
+        num_parents_mating=10,  # Number of parents selected for mating
+        fitness_func=fitness_function,  # Fitness function
+        sol_per_pop=50,  # Number of solutions in the population
+        num_genes=nb_param,  # Number of genes (parameters to optimize)
+        gene_type=float,  # Data type for each gene
+        init_range_low=0,  # Lower bound for gene values
+        init_range_high=100,  # Upper bound for gene values (adjust based on the field dimensions)
+        mutation_type="random",  # Mutation type
+        mutation_percent_genes=30,  # Percentage of genes to mutate
+        crossover_type="single_point",  # Type of crossover
+        parent_selection_type="sss",  # Parent selection method (Stochastic universal sampling)
+        keep_parents=2,  # Number of parents to keep in the next generation
+        on_generation=lambda ga: print(f"Generation {ga.generations_completed}: Best Fitness = {ga.best_solution()[1]}, Best Position = {ga.best_solution()[0]}")  # Callback to print fitness at each generation
+    )
+
+    # Run the Genetic Algorithm
+    ga_instance.run()
+
+    # After the algorithm completes, get the best solution
+    best_solution, best_solution_fitness, _ = ga_instance.best_solution()
+
+    print("Best Solution:", best_solution)
+    print("Best Fitness:", best_solution_fitness)
+
+    # Convert the best solution to a readable format (e.g., player positions)
+    best_positions = reshape_solution(best_solution)
+    print("Optimal Player Positions:")
+    print(best_positions)
+
+    if (best_solution_fitness - initial_xg) > max:
+        max = (best_solution_fitness - initial_xg)
+        best_iloc=i
+
+    print()
+
+print("Best iloc", best_iloc)
+print("Best xg improvement", max)
