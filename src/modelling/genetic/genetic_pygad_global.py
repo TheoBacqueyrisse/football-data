@@ -80,10 +80,10 @@ def fitness_function(ga_class, solution, solution_idx):
 
     predicted_xg = xgboost_model.predict(model_input)
     
-    return predicted_xg
+    return 1/predicted_xg
 
 def get_teammates(data):
-    teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 1)]
+    teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 0)]
     columns_with_1 = teammates_with_1.index.tolist()
     return columns_with_1
 
@@ -146,7 +146,8 @@ if __name__ == '__main__':
         teammates = ['_'.join(teammate.split('_')[1:]) for teammate in teammates]
 
         # Prepare the initial population
-        base_population = [initial_data["shot_x"], initial_data["shot_y"]]
+        # base_population = [initial_data["shot_x"], initial_data["shot_y"]]
+        base_population = []
         for teammate in teammates:
             base_population.append(initial_data[f'distance_{teammate}'])
             base_population.append(initial_data[f'angle_{teammate}'])
@@ -182,7 +183,7 @@ if __name__ == '__main__':
         best_solution, best_solution_fitness, _ = ga_instance.best_solution()
         percent_improv = round(((best_solution_fitness - initial_xg)/initial_xg * 100)[0],2)
         print(f"Best Solution:({round(best_solution[0],1)},{round(best_solution[1],1)})")
-        print("Best Fitness:", best_solution_fitness[0])
+        print("Best Fitness:", 1/best_solution_fitness[0])
         print(f"Improvement in %:  {percent_improv} %")
 
         overall_basexg.append(initial_xg)
@@ -209,7 +210,7 @@ if __name__ == '__main__':
             freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
             shot_x = matching_row_2['shot_x'].values[0]
             shot_y = matching_row_2['shot_y'].values[0]
-            new_shot_x, new_shot_y = best_solution[:2]
+            # new_shot_x, new_shot_y = best_solution[:2]
             fk_x = matching_row_2['fk_x'].values[0]
             fk_y = matching_row_2['fk_y'].values[0]
 
@@ -220,7 +221,7 @@ if __name__ == '__main__':
             # Extract locations and player names
             new_x, new_y = [], []
 
-            for i,gene in enumerate(best_solution[2:]):
+            for i,gene in enumerate(best_solution):
                 if i==0 or i%2 == 0:
                     new_x.append(gene)
                 else:
@@ -235,7 +236,7 @@ if __name__ == '__main__':
             sns.scatterplot(x=x, y=y, ax=ax, s=50, hue=teammates, palette=palette, legend=False)
             sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=100, color='black', legend=False)
             sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=100, color='purple', legend=False)
-            sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
+            # sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
             sns.scatterplot(x=new_x, y=new_y, ax=ax, s=75, color='yellow', legend=False)
             # Annotate the points with player names
             for i, name in enumerate(names):
