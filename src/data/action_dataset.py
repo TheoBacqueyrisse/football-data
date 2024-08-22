@@ -104,7 +104,7 @@ def main():
     players_teammates = []
 
     # add distance, angle and teammates for k closest players
-    k = 4
+    k = 10
     for i in range(len(action_data_encoded)):
         dist = []
         angle = []

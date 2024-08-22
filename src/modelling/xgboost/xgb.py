@@ -10,7 +10,7 @@ from sklearn.metrics import mean_absolute_error
 
 import wandb
 
-SWEEP_ID = "thomas-toulouse/xgb-football-xg/r25vjm3e"
+SWEEP_ID = "thomas-toulouse/xgb-football-xg/pefcpi4d"
 
 def read_data():
     return  pd.read_csv(XGB_DATA_PATH)
@@ -61,10 +61,12 @@ def main() :
     X = df.drop('shot_statsbomb_xg', axis = 1)
     y = df.shot_statsbomb_xg
     
-    cols_to_keep = ['shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
-                    'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
+    cols_to_keep = ['shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
+    k = 10
+    for i in range(1,k+1):
+        cols_to_keep = cols_to_keep + [f'distance_player_{i}', f'angle_player_{i}', f'teammates_player_{i}']
+
     X_train, X_test, y_train, y_test = train_test_split(X[cols_to_keep], y, test_size=0.25, random_state=42)
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state = 42)
 
     # train xgb
 
@@ -77,11 +79,6 @@ def main() :
 
     # predict, plot mae, get results on test and feature importance
     test_pred = model.predict(X_test)
-
-    # model = xgb_model(X_train.drop('minute', axis = 1), y_train, params = best_parameters, save=True)
-
-    # # predict, plot mae, get results on test and feature importance
-    # test_pred = model.predict(X_test.drop('minute', axis = 1))
 
     mae = mean_absolute_error(y_test, test_pred)
     print(mae)
