@@ -31,19 +31,6 @@ teammates = get_teammates(initial_data)
 teammates = ['_'.join(teammate.split('_')[1:]) for teammate in teammates]
 
 
-# drop_distance_indice = []
-# drop_angle_indice = []
-
-# for teammate in teammates:
-#     drop_distance_indice.append(initial_data.index.get_loc(f'distance_{teammate}'))
-#     drop_angle_indice.append(initial_data.index.get_loc(f'angle_{teammate}'))
-
-# drop_indices = drop_distance_indice + drop_angle_indice
-# drop_indices = sorted(drop_indices, reverse=True)
-
-# Drop columns based on collected indices
-
-
 nb_param = len(teammates)*2 #x and y every player
 
 
