@@ -3,6 +3,11 @@ method: bayes  # Bayesian optimization of hyperparameters
 metric:
   name: xg_improvement  # The metric to optimize
   goal: maximize
+early_terminate:  # Early stopping configuration
+    type: hyperband
+    min_iter: 3  # Minimum number of iterations (generations in your case) to run before considering early stopping
+    eta: 2  # The factor by which the algorithm reduces the number of configurations each round
+    
 parameters:
   num_generations:
     max: 50
@@ -28,3 +33,4 @@ parameters:
     max: 100
     min: 20
     distribution: int_uniform
+  

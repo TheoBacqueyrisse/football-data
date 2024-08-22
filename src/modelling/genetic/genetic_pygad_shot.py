@@ -1,5 +1,5 @@
 import pandas as pd
-from src.config import XGB_DATA_PATH
+from src.config import XGB_DATA_PATH, XGB_MODEL_PATH
 import pygad
 import xgboost as xgb
 import numpy as np
@@ -10,12 +10,12 @@ from mplsoccer import Pitch
 import seaborn as sns
 import matplotlib.pyplot as plt
 import ast
-
+import wandb
 
 warnings.filterwarnings('ignore')
 # Load the pre-trained XGBoost model
 xgboost_model = xgb.XGBRegressor()
-xgboost_model.load_model('src\\modelling\\xgboost\\xgb_few_var.json')  # Replace with the actual path to your model
+xgboost_model.load_model(XGB_MODEL_PATH)  # Replace with the actual path to your model
 
 # Load the data
 # cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
@@ -36,12 +36,16 @@ xgboost_model.load_model('src\\modelling\\xgboost\\xgb_few_var.json')  # Replace
 # drop_indices = sorted(drop_indices, reverse=True)
 
 # Drop columns based on collected indices
-
+SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
 
 num_tuples = 1 #x and y for shot
 sol_per_pop = 50
 x_range = (80, 112)  # Example range for x
 y_range = (10, 70)   # Example range for y
+api = wandb.Api()    
+sweep = api.sweep(SWEEP_ID)
+best_run = sweep.best_run()
+best_parameters = best_run.config
 
 def custom_gene_initialization():
     """Function to initialize each gene as a tuple within specified ranges."""
@@ -98,9 +102,10 @@ def fitness_function(ga_class, solution, solution_idx):
     return predicted_xg
 
 
-cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal', 'distance_player_1', 'distance_player_2', 'distance_player_3', 'distance_player_4', 
-                'angle_player_1', 'angle_player_2', 'angle_player_3', 'angle_player_4', 'teammates_player_1', 'teammates_player_2', 'teammates_player_3', 'teammates_player_4']
-
+cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
+k = 10
+for i in range(1,k+1):
+        cols_to_keep = cols_to_keep + [f'distance_player_{i}', f'angle_player_{i}', f'teammates_player_{i}']
 # init better improvement 
 max = 0
 best_iloc = 0
@@ -112,7 +117,7 @@ for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):
     initial_data = df.iloc[i]
     initial_xg = initial_data.shot_statsbomb_xg
     initial_data = initial_data.drop('shot_statsbomb_xg')
-    print(f'Initial position : {initial_data["shot_x"]}, {initial_data["shot_y"]}\n Initial xG : {xgboost_model.predict(initial_data.to_frame().T)}')
+    print(f'Initial position : ({initial_data["shot_x"]}, {initial_data["shot_y"]})\nInitial xG : {xgboost_model.predict(initial_data.to_frame().T)[0]}')
 
 
     # Initialize the genetic algorithm
@@ -121,20 +126,18 @@ for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):
 
     # Genetic Algorithm Parameters
     ga_instance = pygad.GA(
-        num_generations=30,  # Number of generations
-        num_parents_mating=10,  # Number of parents selected for mating
-        fitness_func=fitness_function,  # Fitness function
-        # sol_per_pop=50,  # Number of solutions in the population
-        # num_genes=num_tuples,  # Number of tuple genes
-        gene_type=object,  # Use object to handle tuple genes
-        initial_population=initial_population,
-        mutation_type=custom_mutation,
-        mutation_percent_genes=30,  # Percentage of genes to mutate
-        crossover_type="single_point",  # Type of crossover
-        parent_selection_type="sss",  # Parent selection method (Stochastic universal sampling)
-        keep_parents=2,  # Number of parents to keep in the next generation
-        # on_generation=lambda ga: print(f"Generation {ga.generations_completed}: Best Fitness = {ga.best_solution()[1]}, Best Position = {ga.best_solution()[0]}")  # Callback to print fitness at each generation
-    )
+    num_generations=best_parameters['num_generations'],
+    num_parents_mating=best_parameters['num_parents_mating'],
+    fitness_func=fitness_function,
+    gene_type=object,
+    initial_population=initial_population,
+    mutation_type=custom_mutation,
+    mutation_percent_genes=best_parameters['mutation_percent_genes'],
+    crossover_type=best_parameters['crossover_type'],
+    parent_selection_type=best_parameters['parent_selection_type'],
+    keep_parents=best_parameters['keep_parents'],
+)
+    
 
     # Run the Genetic Algorithm
     ga_instance.run()
@@ -142,9 +145,9 @@ for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):
     # After the algorithm completes, get the best solution
     best_solution, best_solution_fitness, _ = ga_instance.best_solution()
 
-    print("Best Solution:", best_solution)
-    print("Best Fitness:", best_solution_fitness)
-
+    print(f"Best Solution:({round(best_solution[0])},{round(best_solution[1])}")
+    print("Best Fitness:", best_solution_fitness[0])
+    print(f"Improvement in %:  {round(((best_solution_fitness - initial_xg)/initial_xg * 100)[0],2)} %")
     # Convert the best solution to a readable format (e.g., player positions)
     best_positions = reshape_solution(best_solution)
     # print("Optimal Player Positions:")
@@ -194,7 +197,3 @@ for i in range(len(pd.read_csv(XGB_DATA_PATH, index_col=0))):
         plt.show()
     else:
         print("No matching row found in freekick_pass_shot.csv")
-
-
-print("Best iloc", best_iloc)
-print("Best xg improvement", max)

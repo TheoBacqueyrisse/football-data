@@ -1,6 +1,6 @@
 import wandb
 import pandas as pd
-from src.config import XGB_DATA_PATH
+from src.config import XGB_DATA_PATH, XGB_MODEL_PATH
 import pygad
 import xgboost as xgb
 import numpy as np
@@ -22,7 +22,7 @@ config = wandb.config
 
 # Load the pre-trained XGBoost model
 xgboost_model = xgb.XGBRegressor()
-xgboost_model.load_model('src\\modelling\\xgboost\\xgb_few_var.json')
+xgboost_model.load_model(XGB_MODEL_PATH)
 
 num_tuples = 1 #x and y for shot
 x_range = (80, 112)
@@ -56,14 +56,18 @@ def fitness_function(ga_class, solution, solution_idx):
     predicted_xg = xgboost_model.predict(model_input)
     return predicted_xg
 
-cols_to_keep = [
-    'shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y',
-    'pass_angle', 'distance_to_goal', 'distance_player_1', 
-    'distance_player_2', 'distance_player_3', 'distance_player_4', 
-    'angle_player_1', 'angle_player_2', 'angle_player_3', 
-    'angle_player_4', 'teammates_player_1', 'teammates_player_2', 
-    'teammates_player_3', 'teammates_player_4'
-]
+# cols_to_keep = [
+#     'shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y',
+#     'pass_angle', 'distance_to_goal', 'distance_player_1', 
+#     'distance_player_2', 'distance_player_3', 'distance_player_4', 
+#     'angle_player_1', 'angle_player_2', 'angle_player_3', 
+#     'angle_player_4', 'teammates_player_1', 'teammates_player_2', 
+#     'teammates_player_3', 'teammates_player_4'
+# ]
+cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
+k = 10
+for i in range(1,k+1):
+        cols_to_keep = cols_to_keep + [f'distance_player_{i}', f'angle_player_{i}', f'teammates_player_{i}']
 
 max_xg_improvement = 0
 best_iloc = 0
