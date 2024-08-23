@@ -4,7 +4,7 @@ import pygad
 import xgboost as xgb
 import numpy as np
 import os
-from src.modelling.genetic.functions import euclidean_distance, goal_player_angle
+from src.modelling.genetic.functions import euclidean_distance, goal_player_angle, calculate_position
 import warnings
 from mplsoccer import Pitch
 import seaborn as sns
@@ -23,10 +23,22 @@ SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
 SHOW_PLOT = True
 XGB_DATA_PATH_2 = os.path.join('data', 'processed', 'clean_action_data_glob.csv')
 
-def custom_gene_initialization():
-    """Function to initialize each gene as a tuple within specified ranges."""
-    x = np.random.uniform(low=x_range[0], high=x_range[1])
-    y = np.random.uniform(low=y_range[0], high=y_range[1])
+def custom_gene_initialization(distance, angle, max_radius=5):
+    """Function to initialize each gene within a circle of a certain radius."""
+
+    # for distance, angle in zip(*[iter(base_population[:2])]*2):
+    x, y = calculate_position((base_population[0], base_population[1]), distance, angle)
+                                
+    angle = np.random.uniform(0, 2 * np.pi)
+    radius = np.random.uniform(0, max_radius)
+
+    x = x + radius * np.cos(angle)
+    y = y + radius * np.sin(angle)
+
+    # Ensure the coordinates are within the specified x and y ranges
+    x = np.clip(x, x_range[0], x_range[1])
+    y = np.clip(y, y_range[0], y_range[1])
+
     return [x, y]
 
 def custom_mutation(offspring, ga_instance):
@@ -35,13 +47,15 @@ def custom_mutation(offspring, ga_instance):
         if np.random.uniform(0, 100) < ga_instance.mutation_percent_genes:
             # Select a gene to mutate
             gene_idx = np.random.randint(low=0, high=offspring.shape[1]//2) * 2
-
+            angle = np.random.uniform(0, 2 * np.pi)
+            radius = np.random.uniform(0, max_radius)
             # Mutate either x or y within the ranges
             if np.random.rand() < 0.5:  # Mutate x
-                offspring[idx, gene_idx] = np.random.uniform(low=x_range[0], high=x_range[1])
+                offspring[idx, gene_idx] = offspring[idx, gene_idx] + radius * np.cos(angle)
+                offspring[idx, gene_idx] = np.clip(offspring[idx, gene_idx], x_range[0], x_range[1])
             else:  # Mutate y
-                offspring[idx, gene_idx + 1] = np.random.uniform(low=y_range[0], high=y_range[1])
-
+                offspring[idx, gene_idx + 1] = offspring[idx, gene_idx+1] + radius * np.cos(angle)
+                offspring[idx, gene_idx + 1] = np.clip(offspring[idx, gene_idx + 1], y_range[0], y_range[1])
     return offspring
 
 
@@ -56,8 +70,8 @@ def reshape_solution(solution):
             new_data['shot_x'] = x
             new_data['shot_y'] = y
         else:
-            distance = euclidean_distance((x, y), (initial_data['shot_x'], initial_data['shot_y']))
-            angle = goal_player_angle((x, y), (initial_data['shot_x'], initial_data['shot_y']))
+            distance = euclidean_distance((x, y), (new_data['shot_x'].item(), new_data['shot_y'].item()))
+            angle = goal_player_angle((x, y), (new_data['shot_x'].item(), new_data['shot_y'].item()))
             new_data[f'distance_{teammates[i-1]}'] = distance
             new_data[f'angle_{teammates[i-1]}'] = angle
 
@@ -80,10 +94,10 @@ def fitness_function(ga_class, solution, solution_idx):
 
     predicted_xg = xgboost_model.predict(model_input)
     
-    return 1/predicted_xg
+    return predicted_xg
 
 def get_teammates(data):
-    teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 0)]
+    teammates_with_1 = data[data.index.str.startswith('teammates_player') & (data == 1)]
     columns_with_1 = teammates_with_1.index.tolist()
     return columns_with_1
 
@@ -96,6 +110,7 @@ def complete_list(lst):
     return lst
 
 if __name__ == '__main__':
+    max_radius = 5
     cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
     k = 10
     for i in range(1,k+1):
@@ -146,15 +161,24 @@ if __name__ == '__main__':
         teammates = ['_'.join(teammate.split('_')[1:]) for teammate in teammates]
 
         # Prepare the initial population
-        # base_population = [initial_data["shot_x"], initial_data["shot_y"]]
-        base_population = []
+        base_population = [initial_data["shot_x"], initial_data["shot_y"]]
+        # base_population = []
         for teammate in teammates:
             base_population.append(initial_data[f'distance_{teammate}'])
             base_population.append(initial_data[f'angle_{teammate}'])
 
         initial_population = [base_population]
-        initial_population.extend([[gene for _ in range(len(base_population) // 2) for gene in custom_gene_initialization()]
-                                   for _ in range(best_parameters['sol_per_pop'] - 1)])
+        
+        for _ in range(best_parameters['sol_per_pop'] - 1):
+            initial_gene = []
+            for _ in range(2,len(base_population)+2,2):
+                distance, angle = base_population[_], base_population[_+1]
+
+                gene = custom_gene_initialization(distance, angle, max_radius=max_radius)
+
+                initial_gene.extend(gene)
+
+            initial_population.append(initial_gene)
 
         # Initialize the genetic algorithm
         # initial_population = [[initial_data["shot_x"], initial_data["shot_y"]]]
@@ -182,8 +206,8 @@ if __name__ == '__main__':
         # After the algorithm completes, get the best solution
         best_solution, best_solution_fitness, _ = ga_instance.best_solution()
         percent_improv = round(((best_solution_fitness - initial_xg)/initial_xg * 100)[0],2)
-        print(f"Best Solution:({round(best_solution[0],1)},{round(best_solution[1],1)})")
-        print("Best Fitness:", 1/best_solution_fitness[0])
+        print(f"Best Solution:{[round(x,2) for x in best_solution]}")
+        print("Best Fitness:", best_solution_fitness[0])
         print(f"Improvement in %:  {percent_improv} %")
 
         overall_basexg.append(initial_xg)
@@ -210,7 +234,7 @@ if __name__ == '__main__':
             freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
             shot_x = matching_row_2['shot_x'].values[0]
             shot_y = matching_row_2['shot_y'].values[0]
-            # new_shot_x, new_shot_y = best_solution[:2]
+            new_shot_x, new_shot_y = best_solution[:2]
             fk_x = matching_row_2['fk_x'].values[0]
             fk_y = matching_row_2['fk_y'].values[0]
 
@@ -221,7 +245,7 @@ if __name__ == '__main__':
             # Extract locations and player names
             new_x, new_y = [], []
 
-            for i,gene in enumerate(best_solution):
+            for i,gene in enumerate(best_solution[2:]):
                 if i==0 or i%2 == 0:
                     new_x.append(gene)
                 else:
@@ -236,7 +260,7 @@ if __name__ == '__main__':
             sns.scatterplot(x=x, y=y, ax=ax, s=50, hue=teammates, palette=palette, legend=False)
             sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=100, color='black', legend=False)
             sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=100, color='purple', legend=False)
-            # sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
+            sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', legend=False)
             sns.scatterplot(x=new_x, y=new_y, ax=ax, s=75, color='yellow', legend=False)
             # Annotate the points with player names
             for i, name in enumerate(names):

@@ -23,3 +23,23 @@ def goal_player_angle(loc1, loc2):
     theta = math.acos(cos_theta)
     return math.degrees(theta)
 
+def calculate_position(loc2, distance, angle):
+    """
+    Calculate the (x, y) position of loc1 given the distance and angle from loc2.
+    
+    Parameters:
+    loc2 (tuple): The reference point (x2, y2).
+    distance (float): The distance between loc1 and loc2.
+    angle (float): The angle (in degrees) between the line connecting loc1 and loc2 and the positive x-axis.
+    
+    Returns:
+    tuple: The (x, y) coordinates of loc1.
+    """
+    # Convert angle from degrees to radians for trigonometric calculations
+    angle_rad = math.radians(angle)
+    
+    # Calculate the x and y coordinates
+    x = loc2[0] + distance * math.cos(angle_rad)
+    y = loc2[1] + distance * math.sin(angle_rad)
+    
+    return x, y
