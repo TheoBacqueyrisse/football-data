@@ -15,10 +15,7 @@ from tqdm import tqdm
 import math
 
 warnings.filterwarnings('ignore')
-# Load the pre-trained XGBoost model
 
-
-# Drop columns based on collected indices
 SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
 SHOW_PLOT = True
 XGB_DATA_PATH_2 = os.path.join('data', 'processed', 'clean_action_data_glob.csv')
@@ -34,7 +31,7 @@ def custom_gene_initialization(distance, angle, max_radius=5):
 
     x = x + radius * np.cos(angle)
     y = y + radius * np.sin(angle)
-
+    
     # Ensure the coordinates are within the specified x and y ranges
     x = np.clip(x, x_range[0], x_range[1])
     y = np.clip(y, y_range[0], y_range[1])
@@ -83,10 +80,10 @@ def fitness_function(ga_class, solution, solution_idx):
     # Reshape the solution to fit the expected input of the XGBoost model
     model_input = reshape_solution(solution)
     
-# Get the feature names from the training data
+    # Get the feature names from the training data
     feature_names = xgboost_model.feature_names_in_
 
-# Get the feature names from the input data
+    # Get the feature names from the input data
 
     # Check if the feature names are consistent
     if len(feature_names) != len(model_input.columns):
@@ -114,7 +111,7 @@ if __name__ == '__main__':
     cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
     k = 10
     for i in range(1,k+1):
-            cols_to_keep = cols_to_keep + [f'distance_player_{i}', f'angle_player_{i}', f'teammates_player_{i}']
+        cols_to_keep = cols_to_keep + [f'distance_player_{i}', f'angle_player_{i}', f'teammates_player_{i}']
     # init better improvement 
     max = 0
     best_iloc = 0
@@ -170,34 +167,33 @@ if __name__ == '__main__':
         initial_population = [base_population]
         
         for _ in range(best_parameters['sol_per_pop'] - 1):
-            initial_gene = []
-            for _ in range(2,len(base_population)+2,2):
-                distance, angle = base_population[_], base_population[_+1]
+            initial_gene = base_population[:2]
+            for i in range(2,len(base_population),2):
+                distance, angle = base_population[i], base_population[i+1]
 
                 gene = custom_gene_initialization(distance, angle, max_radius=max_radius)
 
                 initial_gene.extend(gene)
-
             initial_population.append(initial_gene)
+
 
         # Initialize the genetic algorithm
         # initial_population = [[initial_data["shot_x"], initial_data["shot_y"]]]
         # initial_population.extend([[gene for _ in range(num_tuples) for gene in custom_gene_initialization()] for _ in range(best_parameters['sol_per_pop']-1)])
-    
 
         # Genetic Algorithm Parameters
         ga_instance = pygad.GA(
-        num_generations=best_parameters['num_generations'],
-        num_parents_mating=best_parameters['num_parents_mating'],
-        fitness_func=fitness_function,
-        gene_type=object,
-        initial_population=initial_population,
-        mutation_type=custom_mutation,
-        mutation_percent_genes=best_parameters['mutation_percent_genes'],
-        crossover_type=best_parameters['crossover_type'],
-        parent_selection_type=best_parameters['parent_selection_type'],
-        keep_parents=best_parameters['keep_parents'],
-    )
+            num_generations=best_parameters['num_generations'],
+            num_parents_mating=best_parameters['num_parents_mating'],
+            fitness_func=fitness_function,
+            gene_type=object,
+            initial_population=initial_population,
+            mutation_type=custom_mutation,
+            mutation_percent_genes=best_parameters['mutation_percent_genes'],
+            crossover_type=best_parameters['crossover_type'],
+            parent_selection_type=best_parameters['parent_selection_type'],
+            keep_parents=best_parameters['keep_parents'],
+        )
         
 
         # Run the Genetic Algorithm
