@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 def euclidean_distance(loc1, loc2):
     return math.sqrt((loc1[0] - loc2[0]) ** 2 + (loc1[1] - loc2[1]) ** 2)
@@ -23,7 +24,7 @@ def goal_player_angle(loc1, loc2):
     theta = math.acos(cos_theta)
     return math.degrees(theta)
 
-def calculate_position(loc2, distance, angle):
+def calculate_position(loc2, distance, angle_rad):
     """
     Calculate the (x, y) position of loc1 given the distance and angle from loc2.
     
@@ -35,11 +36,8 @@ def calculate_position(loc2, distance, angle):
     Returns:
     tuple: The (x, y) coordinates of loc1.
     """
-    # Convert angle from degrees to radians for trigonometric calculations
-    angle_rad = math.radians(angle)
-    
     # Calculate the x and y coordinates
-    x = loc2[0] + distance * math.cos(angle_rad)
-    y = loc2[1] + distance * math.sin(angle_rad)
+    x = loc2[0] + distance * np.cos(angle_rad)
+    y = loc2[1] + distance * np.sin(angle_rad)
     
     return x, y
