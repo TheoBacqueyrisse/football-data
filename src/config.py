@@ -12,3 +12,5 @@ XGB_FEATURE_IMPORTANCE_PATH = os.path.join('src', 'modelling', 'xgboost', 'featu
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE = 64
 MAX_EPOCHS = 100
+
+GENETIC_RESULT_PATH = os.path.join('src','modelling','genetic','results', 'results.csv')

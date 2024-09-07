@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append('./')
 
-from src.config import XGB_DATA_PATH, XGB_MODEL_PATH
+from src.config import XGB_DATA_PATH, XGB_MODEL_PATH, GENETIC_RESULT_PATH
 import pygad
 import xgboost as xgb
 import numpy as np
@@ -25,23 +25,41 @@ SHOW_PLOT = True
 XGB_DATA_PATH_2 = os.path.join('data', 'processed', 'clean_action_data_glob.csv')
 MAX_RADIUS = 2
 
-def custom_gene_initialization(distance, angle, max_radius=5):
+def custom_gene_initialization(x, y, max_radius=5):
     """Function to initialize each gene within a circle of a certain radius."""
 
     # for distance, angle in zip(*[iter(base_population[:2])]*2):
-    x, y = calculate_position((base_population[0], base_population[1]), distance, angle)
-                                
+                          
     angle = np.random.uniform(0, 2 * np.pi)
-    radius = np.random.uniform(0, max_radius)
+    radius = np.random.uniform(-max_radius, max_radius)
 
-    x = x + radius * np.cos(angle)
-    y = y + radius * np.sin(angle)
-    
+    new_x = x + radius * np.cos(angle)
+    new_y = y + radius * np.sin(angle)
+
     # Ensure the coordinates are within the specified x and y ranges
-    x = np.clip(x, x_range[0], x_range[1])
-    y = np.clip(y, y_range[0], y_range[1])
+    # x = np.clip(x, x - MAX_RADIUS, x + MAX_RADIUS)
+    # y = np.clip(y, y - MAX_RADIUS, y + MAX_RADIUS)
 
-    return [x, y]
+    new_x, new_y = clip_to_circle(new_x, new_y, x, y, max_radius)
+    return [new_x, new_y]
+
+def clip_to_circle(x, y, cx, cy, radius):
+    # Calculate the distance from the center of the circle
+    dx = x - cx
+    dy = y - cy
+    distance = math.sqrt(dx**2 + dy**2)
+    
+    # If the point is inside or on the circle, no need to clip
+    if distance <= radius:
+        return x, y
+    
+    # If the point is outside the circle, scale the coordinates back to the circle's boundary
+    scale = radius / distance
+    clipped_x = cx + dx * scale
+    clipped_y = cy + dy * scale
+
+    # print(f'clipped_x: {clipped_x}, clipped_y: {clipped_y}\nbase_x: {x}, base_y: {y}')
+    return clipped_x, clipped_y
 
 def custom_mutation(offspring, ga_instance, original_population):
     """Custom mutation function to mutate the genes relative to the original values."""
@@ -50,20 +68,27 @@ def custom_mutation(offspring, ga_instance, original_population):
             # Select a gene to mutate
             gene_idx = np.random.randint(low=0, high=offspring.shape[1] // 2) * 2
 
+            base_x = original_population[0, gene_idx] #0 to have x and y from initial population (real position)
+            base_y = original_population[0, gene_idx + 1]
+  
+            
             # Use the original population value for mutation
-            original_x = original_population[idx, gene_idx]
-            original_y = original_population[idx, gene_idx + 1]
-
+            original_x = offspring[idx, gene_idx]
+            original_y = offspring[idx, gene_idx + 1]
+           
             # Apply the mutation based on the original values
             angle = np.random.uniform(0, 2 * np.pi)
-            radius = np.random.uniform(0, MAX_RADIUS)
+            radius = np.random.uniform(-MAX_RADIUS, MAX_RADIUS)
             
-            if np.random.rand() < 0.5:  # Mutate x
-                mutated_x = original_x + radius * np.cos(angle)
-                offspring[idx, gene_idx] = np.clip(mutated_x, x_range[0], x_range[1])
-            else:  # Mutate y
-                mutated_y = original_y + radius * np.sin(angle)
-                offspring[idx, gene_idx + 1] = np.clip(mutated_y, y_range[0], y_range[1])
+         
+            mutated_x = original_x + radius * np.cos(angle)
+            mutated_y = original_y + radius * np.sin(angle)
+
+            new_x, new_y = clip_to_circle(mutated_x, mutated_y, base_x, base_y, MAX_RADIUS)
+            offspring[idx, gene_idx] = new_x
+            offspring[idx, gene_idx + 1] = new_y
+            # if gene_idx == 8 :
+            #     print(f'For gene index : {gene_idx}, base_x: {base_x}, base_y: {base_y}, original_x: {original_x}, original_y: {original_y}, new_x: {new_x}, new_y: {new_y}')
 
     return offspring
 
@@ -78,6 +103,11 @@ def reshape_solution(solution):
         if i == 0:
             new_data['shot_x'] = x
             new_data['shot_y'] = y
+            distance_to_goal = euclidean_distance((120, 40), (new_data['shot_x'].item(), new_data['shot_y'].item()))
+            pass_angle = goal_player_angle((new_data['fk_x'].item(), new_data['fk_y'].item()), (new_data['shot_x'].item(), new_data['shot_y'].item()), use_goal=False)
+
+            new_data['distance_to_goal'] = distance_to_goal
+            new_data['pass_angle'] = pass_angle
         else:
             distance = euclidean_distance((x, y), (new_data['shot_x'].item(), new_data['shot_y'].item()))
             angle = goal_player_angle((x, y), (new_data['shot_x'].item(), new_data['shot_y'].item()))
@@ -118,6 +148,43 @@ def complete_list(lst):
 
     return lst
 
+
+def get_real_x_y():
+    freekick_data = pd.read_csv(os.path.join('data', 'raw', 'freekick_pass_shot.csv'), index_col=0)
+    freekick_data_2 = pd.read_csv(XGB_DATA_PATH)
+
+    # Find the row where the shot_statsbomb_xg value matches your initial_xg value
+    matching_row = freekick_data[freekick_data['shot_statsbomb_xg'] == true_xg]
+    matching_row_2 = freekick_data_2[freekick_data_2['shot_statsbomb_xg'] == true_xg]
+
+    freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
+    shot_x = matching_row_2['shot_x'].values[0]
+    shot_y = matching_row_2['shot_y'].values[0]
+    # new_shot_x, new_shot_y = best_solution[:2]
+    fk_x = matching_row_2['fk_x'].values[0]
+    fk_y = matching_row_2['fk_y'].values[0]
+
+    # Track the initial and optimized positions
+    initial_positions_teammates = {'x': [], 'y': [], 'names': []}
+    optimized_positions_teammates = {'x': [], 'y': []}
+    initial_positions_non_teammates = {'x': [], 'y': [], 'names': []}
+
+    # Extract initial positions from the freeze frame
+    for player in freeze_frame:
+        x = player['location'][0]
+        y = player['location'][1]
+        if player['teammate']:
+            initial_positions_teammates['x'].append(x)
+            initial_positions_teammates['y'].append(y)
+            initial_positions_teammates['names'].append(player['position']['id'])
+        else:
+            initial_positions_non_teammates['x'].append(x)
+            initial_positions_non_teammates['y'].append(y)
+            initial_positions_non_teammates['names'].append(player['position']['id'])
+
+    return shot_x, shot_y, fk_x, fk_y, initial_positions_teammates, initial_positions_non_teammates, optimized_positions_teammates
+
+
 if __name__ == '__main__':
     
     cols_to_keep = ['shot_statsbomb_xg', 'shot_x', 'shot_y', 'fk_x', 'fk_y', 'pass_angle', 'distance_to_goal'] 
@@ -130,10 +197,14 @@ if __name__ == '__main__':
     df_base = pd.read_csv(XGB_DATA_PATH_2)
 
     df = df_base[cols_to_keep]
-
-    overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
-    overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
-    overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
+    if 'pctge_improvement' in df.columns:
+        overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
+        overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
+        overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
+    else:
+        overall_improv_list = []
+        overall_fitness_list = []
+        overall_basexg = []
 
 
     xgboost_model = xgb.XGBRegressor()
@@ -153,10 +224,15 @@ if __name__ == '__main__':
         
     print("Starting from index :", index_to_start)
 
-    for idx in tqdm(range(index_to_start, len(df))):  
-        overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
-        overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
-        overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
+    for idx in tqdm(range(index_to_start, len(df))): 
+        if 'pctge_improvement' in df.columns:
+            overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
+            overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
+            overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
+        else:
+            overall_improv_list = []
+            overall_fitness_list = []
+            overall_basexg = []
 
         print("iloc :", idx)
         
@@ -164,29 +240,32 @@ if __name__ == '__main__':
         true_xg = df_base.iloc[idx]['shot_statsbomb_xg']
         initial_data = initial_data.drop('shot_statsbomb_xg')
         initial_xg = xgboost_model.predict(initial_data.to_frame().T)[0]
-        print(f'Initial position : ({initial_data["shot_x"]}, {initial_data["shot_y"]})\nInitial xG : {initial_xg}')
+        
 
         teammates = get_teammates(initial_data)
         teammates = ['_'.join(teammate.split('_')[1:]) for teammate in teammates]
-
+        shot_x, shot_y, fk_x, fk_y, initial_positions_teammates, initial_positions_non_teammates, optimized_positions_teammates = get_real_x_y()
+    
         # Prepare the initial population
         base_population = [initial_data["shot_x"], initial_data["shot_y"]]
         # base_population = []
-        for teammate in teammates:
-            base_population.append(initial_data[f'distance_{teammate}'])
-            base_population.append(initial_data[f'angle_{teammate}'])
+        for idx,teammate in enumerate(teammates):
+            x = initial_positions_teammates['x'][idx]
+            y = initial_positions_teammates['y'][idx]
+            # x, y = calculate_position((initial_data["shot_x"], initial_data["shot_y"]), initial_data[f'distance_{teammate}'], initial_data[f'angle_{teammate}'])
+            base_population.append(x)
+            base_population.append(y)
 
         initial_population = [base_population]
         
         for _ in range(best_parameters['sol_per_pop'] - 1):
             initial_gene = base_population[:2]
             for i in range(2,len(base_population),2):
-                distance, angle = base_population[i], base_population[i+1]
-
-                gene = custom_gene_initialization(distance, angle, max_radius=MAX_RADIUS)
+                gene = custom_gene_initialization(base_population[i], base_population[i+1], max_radius=MAX_RADIUS)
 
                 initial_gene.extend(gene)
             initial_population.append(initial_gene)
+        print(f'Initial population : ({initial_population[0]})\nInitial xG : {initial_xg}')
 
 
         # Initialize the genetic algorithm
@@ -224,46 +303,23 @@ if __name__ == '__main__':
         # Convert the best solution to a readable format (e.g., player positions)
         best_positions = reshape_solution(best_solution)
         # print("Optimal Player Positions:")
-        # print(best_positions)
+        try:
+            df_best_positions = pd.read_csv(GENETIC_RESULT_PATH)
+            df_best_positions = pd.concat([df_best_positions, best_positions], ignore_index=True)
+        except FileNotFoundError:
+            df_best_positions = best_positions
+        
+        df_best_positions.to_csv(GENETIC_RESULT_PATH, index=False)
 
         if percent_improv > max:
             max = percent_improv
             best_iloc=i
 
         if SHOW_PLOT:
-                    # Load the freekick_pass_shot.csv file
-            freekick_data = pd.read_csv(os.path.join('data', 'raw', 'freekick_pass_shot.csv'), index_col=0)
-            freekick_data_2 = pd.read_csv(XGB_DATA_PATH)
-
-            # Find the row where the shot_statsbomb_xg value matches your initial_xg value
-            matching_row = freekick_data[freekick_data['shot_statsbomb_xg'] == true_xg]
-            matching_row_2 = freekick_data_2[freekick_data_2['shot_statsbomb_xg'] == true_xg]
-
-            freeze_frame = ast.literal_eval(matching_row['shot_freeze_frame'].values[0])
-            shot_x = matching_row_2['shot_x'].values[0]
-            shot_y = matching_row_2['shot_y'].values[0]
             new_shot_x, new_shot_y = best_solution[:2]
-            fk_x = matching_row_2['fk_x'].values[0]
-            fk_y = matching_row_2['fk_y'].values[0]
 
-            # Track the initial and optimized positions
-            initial_positions_teammates = {'x': [], 'y': [], 'names': []}
-            optimized_positions_teammates = {'x': [], 'y': []}
-            initial_positions_non_teammates = {'x': [], 'y': [], 'names': []}
-
-            # Extract initial positions from the freeze frame
-            for player in freeze_frame:
-                x = player['location'][0]
-                y = player['location'][1]
-                if player['teammate']:
-                    initial_positions_teammates['x'].append(x)
-                    initial_positions_teammates['y'].append(y)
-                    initial_positions_teammates['names'].append(player['position']['id'])
-                else:
-                    initial_positions_non_teammates['x'].append(x)
-                    initial_positions_non_teammates['y'].append(y)
-                    initial_positions_non_teammates['names'].append(player['position']['id'])
-
+            from matplotlib.patches import Circle
+                    # Load the freekick_pass_shot.csv file
             # Extract optimized positions from the best solution
             for i in range(0, len(best_solution[2:]), 2):
                 optimized_positions_teammates['x'].append(best_solution[2 + i])
@@ -274,41 +330,44 @@ if __name__ == '__main__':
             fig, ax = pitch.draw()
 
             # Plot the initial positions of teammates
-            sns.scatterplot(x=initial_positions_teammates['x'], y=initial_positions_teammates['y'], ax=ax, s=75, color='blue', label='Initial Position (Teammates)', marker='o')
+            sns.scatterplot(x=initial_positions_teammates['x'], y=initial_positions_teammates['y'], ax=ax, s=25, color='blue', label='Initial Position (Teammates)', marker='o')
 
             # Plot the optimized positions of teammates
-            sns.scatterplot(x=optimized_positions_teammates['x'], y=optimized_positions_teammates['y'], ax=ax, s=75, color='red', label='Optimized Position (Teammates)', marker='X')
+            sns.scatterplot(x=optimized_positions_teammates['x'], y=optimized_positions_teammates['y'], ax=ax, s=25, color='red', label='Optimized Position (Teammates)', marker='X')
 
             # Plot the initial positions of non-teammates
-            sns.scatterplot(x=initial_positions_non_teammates['x'], y=initial_positions_non_teammates['y'], ax=ax, s=75, color='orange', label='Initial Position (Non-Teammates)', marker='o')
+            sns.scatterplot(x=initial_positions_non_teammates['x'], y=initial_positions_non_teammates['y'], ax=ax, s=25, color='orange', label='Initial Position (Non-Teammates)', marker='o')
 
             # Plot the initial shot position, freekick position, and optimized shot position
-            sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=100, color='black', label='Initial Shot Position', marker='P')
-            sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=100, color='purple', label='Freekick Position', marker='D')
-            sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=100, color='white', label='Optimized Shot Position', marker='P')
+            sns.scatterplot(x=[shot_x], y=[shot_y], ax=ax, s=50, color='black', label='Initial Shot Position', marker='P', alpha=0.75)
+            sns.scatterplot(x=[fk_x], y=[fk_y], ax=ax, s=50, color='purple', label='Freekick Position', marker='D', alpha=0.75)
+            sns.scatterplot(x=[new_shot_x], y=[new_shot_y], ax=ax, s=50, color='white', label='Optimized Shot Position', marker='P', alpha=0.75)
 
+            for x, y in zip(initial_positions_teammates['x'], initial_positions_teammates['y']):
+                circle = Circle((x, y), MAX_RADIUS, color='blue', alpha=0.2, fill=True)
+                ax.add_patch(circle)
             # Annotate the initial positions of teammates
-            for i in range(len(initial_positions_teammates['x'])):
-                ax.annotate(initial_positions_teammates['names'][i], 
-                            (initial_positions_teammates['x'][i], initial_positions_teammates['y'][i]), 
-                            textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='blue')
+            # for i in range(len(initial_positions_teammates['x'])):
+            #     ax.annotate(initial_positions_teammates['names'][i], 
+            #                 (initial_positions_teammates['x'][i], initial_positions_teammates['y'][i]), 
+            #                 textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='blue')
 
-            # Annotate the initial positions of non-teammates
-            for i in range(len(initial_positions_non_teammates['x'])):
-                ax.annotate(initial_positions_non_teammates['names'][i], 
-                            (initial_positions_non_teammates['x'][i], initial_positions_non_teammates['y'][i]), 
-                            textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='orange')
+            # # Annotate the initial positions of non-teammates
+            # for i in range(len(initial_positions_non_teammates['x'])):
+            #     ax.annotate(initial_positions_non_teammates['names'][i], 
+            #                 (initial_positions_non_teammates['x'][i], initial_positions_non_teammates['y'][i]), 
+            #                 textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='orange')
 
-            # Annotate the optimized positions of teammates
-            for i in range(len(optimized_positions_teammates['x'])):
-                ax.annotate(f"Opt_{initial_positions_teammates['names'][i]}", 
-                            (optimized_positions_teammates['x'][i], optimized_positions_teammates['y'][i]), 
-                            textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='red')
+            # # Annotate the optimized positions of teammates
+            # for i in range(len(optimized_positions_teammates['x'])):
+            #     ax.annotate(f"Opt_{initial_positions_teammates['names'][i]}", 
+            #                 (optimized_positions_teammates['x'][i], optimized_positions_teammates['y'][i]), 
+            #                 textcoords="offset points", xytext=(0, 10), ha='center', fontsize=5, color='red')
 
             # Display the legend to differentiate between initial and optimized positions
-            ax.legend()
-
-            plt.savefig(f'{os.path.join('src','modelling','genetic',str(idx))}.png')
+            ax.legend(fontsize=8, loc='upper left')
+            plt.show()
+            # plt.savefig(f"{os.path.join('src','modelling','genetic','results', str(idx))}.png")
 
         print(f"Maximum Improvement: {max} %")
         print(f"Best Iloc: {best_iloc}")

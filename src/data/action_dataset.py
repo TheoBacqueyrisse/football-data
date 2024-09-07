@@ -7,8 +7,8 @@ from src.data.utils import clean_location, euclidean_distance, vector_from_point
 import os
 from tqdm import tqdm 
 
-RAW_DATA_PATH = 'C:/Users/Aqsone/Desktop/football-data/data/raw/freekick_pass_shot.csv'
-PROCESSED_DATA_PATH = 'C:/Users/Aqsone/Desktop/football-data/data/processed/clean_action_data.csv'
+RAW_DATA_PATH = 'data/raw/freekick_pass_shot.csv'
+PROCESSED_DATA_PATH = 'data/processed/clean_action_data.csv'
 
 def read_raw_data():
     return pd.read_csv(RAW_DATA_PATH)
