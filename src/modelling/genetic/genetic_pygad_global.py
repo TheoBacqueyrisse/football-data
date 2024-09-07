@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
 SHOW_PLOT = True
 XGB_DATA_PATH_2 = os.path.join('data', 'processed', 'clean_action_data_glob.csv')
-MAX_RADIUS = 2
+MAX_RADIUS = 5
 
 def custom_gene_initialization(x, y, max_radius=5):
     """Function to initialize each gene within a circle of a certain radius."""
@@ -170,7 +170,14 @@ def get_real_x_y():
     initial_positions_non_teammates = {'x': [], 'y': [], 'names': []}
 
     # Extract initial positions from the freeze frame
-    for player in freeze_frame:
+    players = freeze_frame
+    for player in players:
+        player['distance'] = euclidean_distance(player['location'], (shot_x, shot_y))
+        player['angle'] = goal_player_angle(player['location'], (shot_x, shot_y), use_goal=True)
+
+    sorted_players = sorted(players, key=lambda x: x['distance'])
+    
+    for player in sorted_players:
         x = player['location'][0]
         y = player['location'][1]
         if player['teammate']:
@@ -197,7 +204,7 @@ if __name__ == '__main__':
     df_base = pd.read_csv(XGB_DATA_PATH_2)
 
     df = df_base[cols_to_keep]
-    if 'pctge_improvement' in df.columns:
+    if 'pctge_improvement' in df_base.columns:
         overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
         overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
         overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
@@ -225,7 +232,8 @@ if __name__ == '__main__':
     print("Starting from index :", index_to_start)
 
     for idx in tqdm(range(index_to_start, len(df))): 
-        if 'pctge_improvement' in df.columns:
+        df_base = pd.read_csv(XGB_DATA_PATH_2)
+        if 'pctge_improvement' in df_base.columns:
             overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
             overall_fitness_list = list(filter(lambda x: not math.isnan(x), df_base['pred_improved_xg'].to_list()))
             overall_basexg = list(filter(lambda x: not math.isnan(x), df_base['pred_base_xg'].to_list()))
@@ -249,9 +257,9 @@ if __name__ == '__main__':
         # Prepare the initial population
         base_population = [initial_data["shot_x"], initial_data["shot_y"]]
         # base_population = []
-        for idx,teammate in enumerate(teammates):
-            x = initial_positions_teammates['x'][idx]
-            y = initial_positions_teammates['y'][idx]
+        for i,teammate in enumerate(teammates):
+            x = initial_positions_teammates['x'][i]
+            y = initial_positions_teammates['y'][i]
             # x, y = calculate_position((initial_data["shot_x"], initial_data["shot_y"]), initial_data[f'distance_{teammate}'], initial_data[f'angle_{teammate}'])
             base_population.append(x)
             base_population.append(y)
@@ -366,8 +374,7 @@ if __name__ == '__main__':
 
             # Display the legend to differentiate between initial and optimized positions
             ax.legend(fontsize=8, loc='upper left')
-            plt.show()
-            # plt.savefig(f"{os.path.join('src','modelling','genetic','results', str(idx))}.png")
+            plt.savefig(f"{os.path.join('src','modelling','genetic','results', str(idx))}.png", format="png")
 
         print(f"Maximum Improvement: {max} %")
         print(f"Best Iloc: {best_iloc}")
