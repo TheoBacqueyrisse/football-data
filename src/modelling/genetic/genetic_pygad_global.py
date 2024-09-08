@@ -71,7 +71,10 @@ def custom_mutation(offspring, ga_instance, original_population):
             base_x = original_population[0, gene_idx] #0 to have x and y from initial population (real position)
             base_y = original_population[0, gene_idx + 1]
   
-            
+            x_values = original_population[0][0::2]
+
+            # Finding the maximum x-value
+            x_max = np.max(x_values)
             # Use the original population value for mutation
             original_x = offspring[idx, gene_idx]
             original_y = offspring[idx, gene_idx + 1]
@@ -85,6 +88,10 @@ def custom_mutation(offspring, ga_instance, original_population):
             mutated_y = original_y + radius * np.sin(angle)
 
             new_x, new_y = clip_to_circle(mutated_x, mutated_y, base_x, base_y, MAX_RADIUS)
+
+            if gene_idx == 0: #To prevent from offside
+                new_x = np.clip(new_x, 0, x_max)
+
             offspring[idx, gene_idx] = new_x
             offspring[idx, gene_idx + 1] = new_y
             # if gene_idx == 8 :
@@ -311,6 +318,9 @@ if __name__ == '__main__':
         # Convert the best solution to a readable format (e.g., player positions)
         best_positions = reshape_solution(best_solution)
         # print("Optimal Player Positions:")
+        best_positions['pred_base_xg'] = [initial_xg]
+        best_positions['pred_improved_xg'] = [best_solution_fitness[0]]
+        best_positions['pctge_improvement'] = [percent_improv]
         try:
             df_best_positions = pd.read_csv(GENETIC_RESULT_PATH)
             df_best_positions = pd.concat([df_best_positions, best_positions], ignore_index=True)
