@@ -73,8 +73,6 @@ def custom_mutation(offspring, ga_instance, original_population):
   
             x_values = original_population[0][0::2]
 
-            # Finding the maximum x-value
-            x_max = np.max(x_values)
             # Use the original population value for mutation
             original_x = offspring[idx, gene_idx]
             original_y = offspring[idx, gene_idx + 1]
@@ -90,7 +88,7 @@ def custom_mutation(offspring, ga_instance, original_population):
             new_x, new_y = clip_to_circle(mutated_x, mutated_y, base_x, base_y, MAX_RADIUS)
 
             if gene_idx == 0: #To prevent from offside
-                new_x = np.clip(new_x, 0, x_max)
+                new_x = np.clip(new_x, 0, X_MAX)
 
             offspring[idx, gene_idx] = new_x
             offspring[idx, gene_idx + 1] = new_y
@@ -262,6 +260,13 @@ if __name__ == '__main__':
         shot_x, shot_y, fk_x, fk_y, initial_positions_teammates, initial_positions_non_teammates, optimized_positions_teammates = get_real_x_y()
     
         # Prepare the initial population
+        x_values = initial_positions_teammates['x']
+
+        # Finding the unique sorted x-values in descending order
+        sorted_x_values = sorted(set(x_values), reverse=True)
+
+        X_MAX = sorted_x_values[1] #2nd max to avoid goalkeeper pos
+
         base_population = [initial_data["shot_x"], initial_data["shot_y"]]
         # base_population = []
         for i,teammate in enumerate(teammates):
@@ -331,7 +336,7 @@ if __name__ == '__main__':
 
         if percent_improv > max:
             max = percent_improv
-            best_iloc=i
+            best_iloc=idx
 
         if SHOW_PLOT:
             new_shot_x, new_shot_y = best_solution[:2]
