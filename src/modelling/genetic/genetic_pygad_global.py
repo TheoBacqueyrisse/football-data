@@ -8,6 +8,7 @@ import pygad
 import xgboost as xgb
 import numpy as np
 import os
+import csv
 from src.modelling.genetic.functions import euclidean_distance, goal_player_angle, calculate_position
 import warnings
 from mplsoccer import Pitch
@@ -24,6 +25,11 @@ SWEEP_ID = "thomas-toulouse/football-data-src_modelling_genetic/jfr8m8x0"
 SHOW_PLOT = True
 XGB_DATA_PATH_2 = os.path.join('data', 'processed', 'clean_action_data_glob.csv')
 MAX_RADIUS = 5
+
+try:
+    GEN_DF = pd.read_csv('src/modelling/genetic/results/result_each_gen.csv')
+except FileNotFoundError:
+    GEN_DF = pd.DataFrame()
 
 def custom_gene_initialization(x, y, max_radius=5):
     """Function to initialize each gene within a circle of a certain radius."""
@@ -154,6 +160,18 @@ def complete_list(lst):
     return lst
 
 
+def on_generation(ga_instance, action_id, initial_xg):
+    global GEN_DF
+    # Get the best solution at the current generation
+    best_solution, best_solution_fitness, best_solution_idx = ga_instance.best_solution()
+
+    GEN_DF = pd.concat([GEN_DF, pd.DataFrame({'index':[action_id], 
+                                    'idx_generation':[ga_instance.generations_completed], 
+                                    'best_solution':[best_solution], 
+                                    'initial_xg':[initial_xg],
+                                    'best_xG':[best_solution_fitness]})])
+
+
 def get_real_x_y():
     freekick_data = pd.read_csv(os.path.join('data', 'raw', 'freekick_pass_shot.csv'), index_col=0)
     freekick_data_2 = pd.read_csv(XGB_DATA_PATH)
@@ -236,7 +254,7 @@ if __name__ == '__main__':
         
     print("Starting from index :", index_to_start)
 
-    for idx in tqdm(range(index_to_start, len(df))): 
+    for idx in tqdm(range(index_to_start + 1, len(df))): 
         df_base = pd.read_csv(XGB_DATA_PATH_2)
         if 'pctge_improvement' in df_base.columns:
             overall_improv_list = list(filter(lambda x: not math.isnan(x), df_base['pctge_improvement'].to_list()))
@@ -304,6 +322,7 @@ if __name__ == '__main__':
             crossover_type=best_parameters['crossover_type'],
             parent_selection_type=best_parameters['parent_selection_type'],
             keep_parents=best_parameters['keep_parents'],
+            on_generation=lambda ga_instance : on_generation(ga_instance, idx, initial_xg)
         )
         
 
@@ -333,6 +352,7 @@ if __name__ == '__main__':
             df_best_positions = best_positions
         
         df_best_positions.to_csv(GENETIC_RESULT_PATH, index=False)
+        GEN_DF.to_csv('src/modelling/genetic/results/result_each_gen.csv', index = False)
 
         if percent_improv > max:
             max = percent_improv
