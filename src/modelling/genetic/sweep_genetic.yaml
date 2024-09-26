@@ -1,0 +1,36 @@
+program: src\modelling\genetic\genetic_pygad_shot_sweep.py  # Your script filename
+method: bayes  # Bayesian optimization of hyperparameters
+metric:
+  name: xg_improvement  # The metric to optimize
+  goal: maximize
+early_terminate:  # Early stopping configuration
+    type: hyperband
+    min_iter: 3  # Minimum number of iterations (generations in your case) to run before considering early stopping
+    eta: 2  # The factor by which the algorithm reduces the number of configurations each round
+    
+parameters:
+  num_generations:
+    max: 50
+    min: 10
+    distribution: int_uniform
+  num_parents_mating:
+    max: 20
+    min: 5
+    distribution: int_uniform
+  mutation_percent_genes:
+    max: 50
+    min: 10
+    distribution: int_uniform
+  crossover_type:
+    values: ["single_point", "two_points", "uniform"]
+  parent_selection_type:
+    values: ["sss", "rws", "tournament", "rank"]
+  keep_parents:
+    max: 5
+    min: 1
+    distribution: int_uniform
+  sol_per_pop:
+    max: 100
+    min: 20
+    distribution: int_uniform
+  

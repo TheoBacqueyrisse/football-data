@@ -1,0 +1,8 @@
+Football_xG.egg-info
+*.cpython*
+lightning_logs
+wandb
+football-data
+football-data-src_modelling
+artifacts
+dist

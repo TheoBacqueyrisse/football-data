@@ -1,0 +1,23 @@
+method: bayes 
+metric:
+  name: mae
+  goal: minimize
+
+parameters:
+  learning_rate:
+    max: 0.5
+    min: 0.005
+    distribution: uniform
+  n_estimators:
+    max: 400
+    min: 25
+    distribution: int_uniform
+  max_depth:
+    max: 14
+    min: 2
+    distribution: int_uniform
+  gamma:
+    max: 0.4
+    min: 0
+    distribution: uniform
+
